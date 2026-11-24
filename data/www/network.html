@@ -30,6 +30,12 @@
 <div class='form-group'><label for='wifi-pass'>Password</label><input type='password' id='wifi-pass' maxlength='64' placeholder='Password' autocomplete='off' autocapitalize='off' autocorrect='off' spellcheck='false'></div>
 <div class='row'><button class='btn btn-primary' id='wifi-save' onclick='saveWiFi()'>Save and restart</button></div>
 <div id='wifi-msg' class='msg'></div></div>
+<div class='card' id='bt-card' hidden><h2>Bluetooth</h2>
+<div class='form-group'><label for='bt-pin'>Pairing PIN</label>
+<div class='row'><input type='text' id='bt-pin' maxlength='16' inputmode='numeric' placeholder='123456'>
+<button class='btn btn-primary' id='bt-pin-btn' onclick='saveBtPin()'>Save</button></div>
+<p class='hint'>Asked for when a phone pairs over Bluetooth. 1&ndash;16 digits; already-paired phones keep working.</p></div>
+<div id='bt-pin-msg' class='msg'></div></div>
 <div class='card' id='speed'><h2>Speed test</h2>
 <p class='hint' style='margin:0 0 12px'>Latency and throughput between this browser and the device.</p>
 <div class='speed'>
@@ -69,6 +75,7 @@ function showInfo(i){
   $('n-phy').textContent=i.wifi_phy||'-';
   $('n-bssid').textContent=i.wifi_bssid||'-';
   if(i.wifi_ssid)$('wifi-ssid').placeholder=i.wifi_ssid;
+  if(i.bt_supported){$('bt-card').hidden=false;loadBtPin();}
 }
 Shell.info().then(showInfo).catch(function(){});
 setInterval(function(){
@@ -112,6 +119,27 @@ async function saveWiFi(){
   catch(e){
     $('wifi-save').disabled=false;
     msg('wifi-msg',e.message||'Could not save','err');}
+}
+
+/* ---- Bluetooth ---- */
+var btPinLoaded=false;
+function loadBtPin(){
+  if(btPinLoaded)return;
+  btPinLoaded=true;
+  Shell.get('/api/bluetooth/pin').then(function(d){
+    if(d.success)$('bt-pin').placeholder=d.pin;
+  }).catch(function(){btPinLoaded=false;});
+}
+async function saveBtPin(){
+  var inp=$('bt-pin'),p=inp.value.trim(),b=$('bt-pin-btn');
+  if(!/^\d{1,16}$/.test(p)){msg('bt-pin-msg','Enter 1 to 16 digits.','err');return;}
+  b.disabled=true;
+  try{var d=await Shell.post('/api/bluetooth/pin',{pin:p});
+    if(!d.success)throw new Error(d.error);
+    inp.value='';inp.placeholder=p;
+    msg('bt-pin-msg','Saved. New pairings use this PIN.','ok');}
+  catch(e){msg('bt-pin-msg',e.message||'Could not save','err');}
+  finally{b.disabled=false;}
 }
 
 /* ---- speed test ---- */

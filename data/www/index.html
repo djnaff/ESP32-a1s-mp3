@@ -16,10 +16,6 @@
 <div class='row'><input type='text' id='dev-name' maxlength='64' placeholder='My Speaker'>
 <button class='btn btn-primary' id='name-btn' onclick='saveName()'>Save</button></div>
 <p class='hint'>What AirPlay, Bluetooth and Sendspin show. It changes on the network after a restart.</p></div>
-<div class='form-group' id='bt-pin-box' hidden><label for='bt-pin'>Bluetooth PIN</label>
-<div class='row'><input type='text' id='bt-pin' maxlength='16' inputmode='numeric' placeholder='123456'>
-<button class='btn btn-primary' id='bt-pin-btn' onclick='saveBtPin()'>Save</button></div>
-<p class='hint'>Asked for when a phone pairs over Bluetooth. 1&ndash;16 digits; already-paired phones keep working.</p></div>
 <div class='form-group'><label for='airplay-mode'>AirPlay</label>
 <div class='row'><select id='airplay-mode' onchange='saveAirplayMode()'>
 <option value='0'>Multi-room (v2)</option>
@@ -316,16 +312,6 @@ async function saveName(){
 }
 $('dev-name').addEventListener('keydown',function(e){if(e.key==='Enter')saveName();});
 
-async function saveBtPin(){
-  var inp=$('bt-pin'),p=inp.value.trim(),b=$('bt-pin-btn');
-  if(!/^\d{1,16}$/.test(p)){Shell.tick(b,false,'1-16 digits');return;}
-  try{var d=await Shell.post('/api/bluetooth/pin',{pin:p});
-    if(!d.success)throw new Error(d.error);
-    inp.value='';inp.placeholder=p;Shell.tick(b,true);}
-  catch(e){Shell.tick(b,false,e.message);}
-}
-$('bt-pin').addEventListener('keydown',function(e){if(e.key==='Enter')saveBtPin();});
-
 async function saveAirplayMode(){
   var sel=$('airplay-mode'),v1=sel.value==='1';
   try{var d=await Shell.post('/api/airplay/mode',{v1:v1});
@@ -371,11 +357,6 @@ async function resetIdentity(){
 
 Shell.info().then(async function(i){
   $('dev-name').placeholder=i.device_name||'';
-  if(i.bt_supported){
-    $('bt-pin-box').hidden=false;
-    try{var b=await Shell.get('/api/bluetooth/pin');
-      if(b.success)$('bt-pin').placeholder=b.pin;}catch(e){}
-  }
   try{var d=await Shell.get('/api/airplay/mode');
     airplayV1=!!d.v1;$('airplay-mode').value=d.v1?'1':'0';}
   catch(e){console.warn('Could not load the AirPlay mode',e);}
