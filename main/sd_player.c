@@ -119,7 +119,7 @@ static esp_err_t ensure_mounted(void) {
   ESP_LOGI(TAG, "Card mounted at %s: %s %uMB", CONFIG_SD_MOUNT_POINT,
            s_card->cid.name,
            (unsigned)((uint64_t)s_card->csd.capacity * s_card->csd.sector_size /
-                      (1024 * 1024)));
+                      (1024ULL * 1024ULL)));
   return ESP_OK;
 }
 
@@ -216,19 +216,18 @@ static void use_rate(uint32_t hz) {
   s_i2s_rate = hz;
 }
 
-static void skip_id3v2(FILE *f) {
+static bool skip_id3v2(FILE *f) {
   uint8_t hdr[10];
   if (fread(hdr, 1, sizeof(hdr), f) == sizeof(hdr) &&
       memcmp(hdr, "ID3", 3) == 0) {
     uint32_t size = ((uint32_t)(hdr[6] & 0x7f) << 21) |
                     ((uint32_t)(hdr[7] & 0x7f) << 14) |
                     ((uint32_t)(hdr[8] & 0x7f) << 7) | (hdr[9] & 0x7f);
-    if (fseek(f, (long)size, SEEK_CUR) != 0) {
-      fseek(f, 0, SEEK_SET);
-    }
-    return;
+    return fseek(f, (long)size, SEEK_CUR) == 0 || fseek(f, 0, SEEK_SET) == 0;
   }
-  fseek(f, 0, SEEK_SET);
+  // No tag: rewind. A failed seek leaves the position indeterminate, so
+  // report it rather than reading from an undefined offset.
+  return fseek(f, 0, SEEK_SET) == 0;
 }
 
 static void copy_span(const char *s, const char *e, char *dst, size_t cap) {
@@ -344,7 +343,6 @@ static void player_task(void *arg) {
   for (;;) {
     if (!s_want_play) {
       end_session();
-      last_paused = false;
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
       continue;
     }
@@ -373,7 +371,18 @@ static void player_task(void *arg) {
       continue;
     }
 
-    skip_id3v2(f);
+    if (!skip_id3v2(f)) {
+      // A failed seek leaves the stream position undefined; skip the file
+      // rather than read from it.
+      ESP_LOGW(TAG, "Cannot read %s", path);
+      fclose(f);
+      if (s_index + 1 < s_count) {
+        s_index++;
+        continue;
+      }
+      s_want_play = false;
+      continue;
+    }
     esp_mp3_dec_reset(dec_mp3);
 
     if (!s_playing) {
@@ -475,7 +484,6 @@ static void player_task(void *arg) {
 
       if (pending > 0) {
         audio_output_write_pcm(pcm, pending, 32768, pdMS_TO_TICKS(500));
-        pending = 0;
       }
 
       if (eof && avail < 4) {

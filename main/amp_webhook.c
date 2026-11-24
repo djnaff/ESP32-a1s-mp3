@@ -20,7 +20,6 @@
 #include "amp_webhook.h"
 
 #include <stdbool.h>
-#include <string.h>
 
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -156,8 +155,11 @@ esp_err_t amp_webhook_init(void) {
     return ESP_OK;
   }
 
-  if (strlen(CONFIG_AMP_WEBHOOK_ON_URL) == 0 ||
-      strlen(CONFIG_AMP_WEBHOOK_OFF_URL) == 0) {
+  // Compile-time empty URLs are the default in the public build. Two separate
+  // booleans keep clang-tidy from folding identical operands into "x || x".
+  const bool on_url_missing = CONFIG_AMP_WEBHOOK_ON_URL[0] == '\0';
+  const bool off_url_missing = CONFIG_AMP_WEBHOOK_OFF_URL[0] == '\0';
+  if (on_url_missing || off_url_missing) {
     ESP_LOGW(TAG, "Amp webhooks enabled but a URL is empty; not starting");
     return ESP_ERR_INVALID_STATE;
   }
