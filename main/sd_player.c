@@ -218,25 +218,18 @@ static void use_rate(uint32_t hz) {
 
 static bool skip_id3v2(FILE *f) {
   uint8_t hdr[10];
-  bool positioned;
-  if (fread(hdr, 1, sizeof(hdr), f) == sizeof(hdr) &&
-      memcmp(hdr, "ID3", 3) == 0) {
+  size_t got = fread(hdr, 1, sizeof(hdr), f);
+  long offset = 0;
+  if (got == sizeof(hdr) && memcmp(hdr, "ID3", 3) == 0) {
     uint32_t size = ((uint32_t)(hdr[6] & 0x7f) << 21) |
                     ((uint32_t)(hdr[7] & 0x7f) << 14) |
                     ((uint32_t)(hdr[8] & 0x7f) << 7) | (hdr[9] & 0x7f);
-    positioned =
-        fseek(f, (long)size, SEEK_CUR) == 0 || fseek(f, 0, SEEK_SET) == 0;
-  } else {
-    // No tag: rewind. A failed seek leaves the position indeterminate, so
-    // report it rather than reading from an undefined offset.
-    positioned = fseek(f, 0, SEEK_SET) == 0;
+    offset = (long)sizeof(hdr) + (long)size;
   }
-  if (positioned) {
-    // A short header read sets the stream's EOF/error flag; fseek repositions
-    // the file but does not clear it, and a later fread would return 0.
-    clearerr(f);
-  }
-  return positioned;
+  // A short probe read leaves the EOF flag set, and a failed seek leaves the
+  // position indeterminate; clear the flag and do one checked absolute seek.
+  clearerr(f);
+  return fseek(f, offset, SEEK_SET) == 0;
 }
 
 static void copy_span(const char *s, const char *e, char *dst, size_t cap) {
@@ -422,12 +415,15 @@ static void player_task(void *arg) {
       }
 
       if (!eof && avail < SD_READ_BYTES) {
-        size_t got = fread(buf + avail, 1, SD_READ_BYTES - avail, f);
-        if (got == 0) {
+        size_t want = SD_READ_BYTES - avail;
+        size_t got = fread(buf + avail, 1, want, f);
+        if (got < want) {
+          // A regular file only reads short at end of file, which also sets
+          // the stream's EOF flag. Stop reading rather than call fread again
+          // with the stream in that state.
           eof = true;
-        } else {
-          avail += got;
         }
+        avail += got;
       }
       if (avail == 0) {
         break;
