@@ -35,6 +35,33 @@ additionally supports **wired Ethernet** through an optional W5500 module.
 
 **No cloud. No app. Just tap and play.**
 
+## This fork: ESP32-A1S AudioKit + SD-card MP3 player
+
+This fork adds support for the **Ai-Thinker ESP32-A1S AudioKit V2.2** (ESP32-WROVER,
+ES8388 codec, two NS4150 amplifiers) and a local MP3 player for the board's SD slot.
+
+- **Board**: ES8388 over I2C (SDA 33 / SCL 32), I2S MCLK 0 / BCK 27 / WS 25 / DOUT 26,
+  amplifier enable GPIO 21. 8 MB flash and 8 MB PSRAM in the `-bt` build; a 4 MB env is
+  also provided.
+- **SD player**: scans `/music` recursively (up to 1000 files, six levels), plays MP3 in
+  relative-path order, and shows an **Album → Track** picker on the Overview page. Titles
+  come from file names; album is the parent folder and artist the folder above it.
+  AirPlay and Bluetooth take priority, and the player releases its decoder while idle.
+- **Not included**: ID3 tags, cover art, FLAC. The ES8388 headphone output is not enabled
+  by the driver; sound comes from the speaker outputs.
+
+```bash
+# ESP32-A1S with Bluetooth (8 MB flash)
+pio run -e esp32-a1s-bt -t upload
+pio run -e esp32-a1s-bt -t uploadfs   # required: web UI in SPIFFS
+
+# Boards with 4 MB flash (datasheet spec)
+pio run -e esp32-a1s-4m -t upload
+```
+
+DIP switch **3 (IO15-CMD) must be ON** for the SD card (1-bit SDMMC). See
+[the board page](docs/boards/esp32-a1s.md) for pins, limits and the Volume/PA behaviour.
+
 ## Quick start
 
 The fastest route is the browser installer — no toolchain, no command line:
