@@ -47,8 +47,9 @@ ES8388 codec, two NS4150 amplifiers) and a local MP3 player for the board's SD s
   relative-path order, and shows an **Album → Track** picker on the Overview page. Titles
   come from file names; album is the parent folder and artist the folder above it.
   AirPlay and Bluetooth take priority, and the player releases its decoder while idle.
-- **Not included**: ID3 tags, cover art, FLAC. The ES8388 headphone output is not enabled
-  by the driver; sound comes from the speaker outputs.
+- **Not included**: ID3 tags, cover art, FLAC. The 3.5 mm jack and the speaker outputs are
+  both live; there is no jack switching, so the speakers also play while headphones are
+  connected.
 
 ```bash
 # ESP32-A1S with Bluetooth (8 MB flash)

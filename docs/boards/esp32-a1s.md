@@ -108,11 +108,11 @@ on the DIP switches in the middle of the board.
 
 ## Amplifier handling
 
-The ES8388 keeps its line and headphone outputs enabled all the time; the only muteable
-stage is the pair of NS4150 amplifiers. The board raises GPIO21 on
-`PLAYBACK_EVENT_PLAYING` and drops it on pause or disconnect. The headphone jack is not
-used for switching (GPIO39 is unreliable on these boards), and the codec's headphone
-output is not separately enabled by the driver.
+The ES8388 keeps its line and headphone outputs enabled all the time, so the 3.5 mm jack
+works without any extra setup. The only muteable stage is the pair of NS4150 amplifiers:
+the board raises GPIO21 on `PLAYBACK_EVENT_PLAYING` and drops it on pause or disconnect.
+There is no jack detection or output switching (GPIO39 is unreliable on these boards), so
+the speakers also play while headphones are connected.
 
 ## SD-card MP3 player
 
