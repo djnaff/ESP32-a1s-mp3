@@ -50,6 +50,16 @@ bool bt_a2dp_sink_is_connected(void);
 void bt_a2dp_sink_set_discoverable(bool discoverable);
 
 /**
+ * Change the legacy pairing PIN and apply it to the running stack.
+ * The value is persisted by the caller (settings_set_bt_pin). While the radio
+ * is suspended the PIN is stored and applied on resume; existing pairings are
+ * not affected.
+ *
+ * @param pin 1-16 digits
+ */
+void bt_a2dp_sink_set_pin(const char *pin);
+
+/**
  * Suspend the Bluetooth radio: disables Bluedroid and the BT controller so the
  * WiFi/BT coexistence arbiter hands all radio airtime to WiFi.  Memory is
  * retained, so bt_a2dp_sink_resume() restores BT without a reboot.  Used to

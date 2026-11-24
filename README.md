@@ -54,6 +54,8 @@ ES8388 codec, two NS4150 amplifiers) and a local MP3 player for the board's SD s
   (IO13-DATA3) must stay off for 1-bit SDMMC. Playback must be started from the web page;
   the keys then control the active source. In AirPlay 2 only volume works; play/pause
   and next/previous need **AirPlay Legacy (v1)** with DACP control enabled.
+- **Bluetooth PIN**: editable on the Playback card (default `123456`); it applies to new
+  pairings immediately, without a restart.
 - **Not included**: ID3 tags, cover art, FLAC. The 3.5 mm jack and the speaker outputs are
   both live; there is no jack switching, so the speakers also play while headphones are
   connected.

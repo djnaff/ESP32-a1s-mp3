@@ -46,6 +46,7 @@ Build `esp32-a1s` for 8 MB and `esp32-a1s-4m` for 4 MB. Flashing the 8 MB layout
 - Green status LED on GPIO22 (active low)
 - Play/pause and volume up/down on KEY4-6, previous/next on KEY2/KEY3 (DIP switch
   dependent) and next album on KEY1
+- Bluetooth A2DP with an editable pairing PIN (Playback card, default `123456`)
 - 8 MB flash, 8 MB PSRAM, OTA updates, 44.1 kHz
 
 Not used by this firmware: the microphones, line-in, the JTAG header and the battery

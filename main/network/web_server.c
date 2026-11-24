@@ -43,6 +43,10 @@
 #include "sd_player.h"
 #endif
 
+#ifdef CONFIG_BT_A2DP_ENABLE
+#include "a2dp_sink.h"
+#endif
+
 #ifdef CONFIG_DAC_TAS58XX
 #include "dac_tas58xx.h"
 #endif
@@ -1313,6 +1317,65 @@ static esp_err_t airplay_mode_post_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+#ifdef CONFIG_BT_A2DP_ENABLE
+static esp_err_t bt_pin_get_handler(httpd_req_t *req) {
+  char pin[17];
+  cJSON *json = cJSON_CreateObject();
+  if (settings_get_bt_pin(pin, sizeof(pin)) == ESP_OK) {
+    cJSON_AddStringToObject(json, "pin", pin);
+    cJSON_AddBoolToObject(json, "success", true);
+  } else {
+    cJSON_AddBoolToObject(json, "success", false);
+  }
+  char *json_str = cJSON_Print(json);
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+  free(json_str);
+  cJSON_Delete(json);
+  return ESP_OK;
+}
+
+static esp_err_t bt_pin_post_handler(httpd_req_t *req) {
+  char *content = recv_body(req, 128);
+  if (!content) {
+    httpd_resp_send_500(req);
+    return ESP_FAIL;
+  }
+
+  cJSON *json = cJSON_Parse(content);
+  free(content);
+  if (!json) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+    return ESP_FAIL;
+  }
+
+  cJSON *response = cJSON_CreateObject();
+  cJSON *val = cJSON_GetObjectItem(json, "pin");
+  if (!val || !cJSON_IsString(val)) {
+    cJSON_AddBoolToObject(response, "success", false);
+    cJSON_AddStringToObject(response, "error", "Expected {\"pin\": string}");
+  } else {
+    const char *pin = cJSON_GetStringValue(val);
+    esp_err_t err = settings_set_bt_pin(pin);
+    if (err == ESP_OK) {
+      bt_a2dp_sink_set_pin(pin);
+      cJSON_AddBoolToObject(response, "success", true);
+    } else {
+      cJSON_AddBoolToObject(response, "success", false);
+      cJSON_AddStringToObject(response, "error", "PIN must be 1-16 digits");
+    }
+  }
+
+  char *json_str = cJSON_Print(response);
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+  free(json_str);
+  cJSON_Delete(json);
+  cJSON_Delete(response);
+  return ESP_OK;
+}
+#endif
+
 static esp_err_t ota_update_handler(httpd_req_t *req) {
   if (req->content_len == 0) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No firmware uploaded");
@@ -1491,6 +1554,11 @@ static esp_err_t system_info_handler(httpd_req_t *req) {
   cJSON_AddNumberToObject(info, "sendspin_paired", sendspin_paired_count());
 #else
   cJSON_AddBoolToObject(info, "sendspin_supported", false);
+#endif
+#ifdef CONFIG_BT_A2DP_ENABLE
+  cJSON_AddBoolToObject(info, "bt_supported", true);
+#else
+  cJSON_AddBoolToObject(info, "bt_supported", false);
 #endif
 
   cJSON_AddItemToObject(json, "info", info);
@@ -3600,6 +3668,18 @@ esp_err_t web_server_start(uint16_t port) {
                                        .method = HTTP_POST,
                                        .handler = airplay_mode_post_handler};
   register_uri(&airplay_mode_post_uri);
+
+#ifdef CONFIG_BT_A2DP_ENABLE
+  httpd_uri_t bt_pin_get_uri = {.uri = "/api/bluetooth/pin",
+                                .method = HTTP_GET,
+                                .handler = bt_pin_get_handler};
+  register_uri(&bt_pin_get_uri);
+
+  httpd_uri_t bt_pin_post_uri = {.uri = "/api/bluetooth/pin",
+                                 .method = HTTP_POST,
+                                 .handler = bt_pin_post_handler};
+  register_uri(&bt_pin_post_uri);
+#endif
 
   httpd_uri_t ota_uri = {.uri = "/api/ota/update",
                          .method = HTTP_POST,

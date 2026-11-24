@@ -109,6 +109,9 @@ static bool s_bt_discoverable = true;
 static bool s_bt_suspended = false;
 // Advertised BT device name, saved so it can be re-applied after a resume.
 static char s_device_name[64] = {0};
+// Legacy pairing PIN, loaded from settings and re-applied when the stack
+// (re-)registers its profiles.
+static char s_pin[17] = "123456";
 static uint8_t s_avrc_volume = 64; /* 0-127, AVRCP absolute volume */
 // The same volume as a software gain, for DACs that cannot attenuate
 // themselves (audio_output_write_pcm ignores it on those that can). Set on
@@ -719,6 +722,22 @@ static void bt_gap_cb(esp_bt_gap_cb_event_t event,
 /* Stack-up handler — called when Bluedroid is (re-)enabled                   */
 /* ========================================================================== */
 
+static void bt_apply_pin(void) {
+  if (s_pin[0] == '\0') {
+    return;
+  }
+  esp_bt_pin_code_t pin_code;
+  uint8_t pin_len = (uint8_t)strlen(s_pin);
+  if (pin_len > ESP_BT_PIN_CODE_LEN) {
+    pin_len = ESP_BT_PIN_CODE_LEN;
+  }
+  // Length-delimited, not a C string.
+  // NOLINTNEXTLINE(bugprone-not-null-terminated-result)
+  memcpy(pin_code, s_pin, pin_len);
+  esp_bt_gap_set_pin(ESP_BT_PIN_TYPE_FIXED, pin_len, pin_code);
+  ESP_LOGI(TAG, "BT PIN set (%d digits)", pin_len);
+}
+
 // Register the GAP/AVRC/A2DP profiles.  Shared by the initial stack-up path
 // and bt_a2dp_sink_resume(), so a suspend/resume cycle re-registers the L2CAP
 // PSMs cleanly instead of relying on them surviving esp_bluedroid_disable().
@@ -739,19 +758,8 @@ static void bt_register_profiles(void) {
   esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
 #endif
 
-  // Legacy Pairing — fixed PIN from Kconfig
-  esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_FIXED;
-  esp_bt_pin_code_t pin_code;
-  const char *pin_str = CONFIG_BT_PIN_CODE;
-  uint8_t pin_len = strlen(pin_str);
-  if (pin_len > ESP_BT_PIN_CODE_LEN) {
-    pin_len = ESP_BT_PIN_CODE_LEN;
-  }
-  // Length-delimited, not a C string.
-  // NOLINTNEXTLINE(bugprone-not-null-terminated-result)
-  memcpy(pin_code, pin_str, pin_len);
-  esp_bt_gap_set_pin(pin_type, pin_len, pin_code);
-  ESP_LOGI(TAG, "BT PIN set (%d digits)", pin_len);
+  // Legacy Pairing - editable PIN (web setting, Kconfig as factory default)
+  bt_apply_pin();
 
   // AVRC Controller (to get metadata from source)
   esp_avrc_ct_register_callback(bt_avrc_ct_cb);
@@ -880,6 +888,11 @@ esp_err_t bt_a2dp_sink_init(const char *device_name,
 
   ESP_LOGI(TAG, "Initializing Bluetooth A2DP Sink: %s", device_name);
 
+  // Pairing PIN before the stack registers its profiles on boot.
+  if (settings_get_bt_pin(s_pin, sizeof(s_pin)) != ESP_OK) {
+    strlcpy(s_pin, "123456", sizeof(s_pin));
+  }
+
   // Release BLE memory — we only need Classic BT.  Irreversible, so it stays
   // out of bt_stack_up() and is never repeated on resume.
   ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
@@ -917,6 +930,18 @@ esp_err_t bt_a2dp_sink_init(const char *device_name,
 
 bool bt_a2dp_sink_is_connected(void) {
   return s_connected;
+}
+
+void bt_a2dp_sink_set_pin(const char *pin) {
+  if (!pin || strlen(pin) == 0 || strlen(pin) > ESP_BT_PIN_CODE_LEN) {
+    return;
+  }
+  strlcpy(s_pin, pin, sizeof(s_pin));
+  // Suspended: the saved value is applied when the stack resumes and the
+  // profiles are re-registered.
+  if (!s_bt_suspended) {
+    bt_apply_pin();
+  }
 }
 
 void bt_a2dp_sink_set_discoverable(bool discoverable) {

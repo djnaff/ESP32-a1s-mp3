@@ -401,7 +401,7 @@ menu "Airplay ESP Configuration"
 
         config BT_PIN_CODE
             string "Bluetooth pairing PIN code"
-            default "05032026"
+            default "123456"
             help
                 Static PIN code used for legacy Bluetooth pairing.
                 Must be 1-16 digits. Connecting devices will be

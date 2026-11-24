@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "nvs.h"
+#include "sdkconfig.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +22,7 @@ static const char *TAG = "settings";
 #define NVS_KEY_WIFI_SSID      "wifi_ssid"
 #define NVS_KEY_WIFI_PASSWORD  "wifi_pass"
 #define NVS_KEY_DEVICE_NAME    "device_name"
+#define NVS_KEY_BT_PIN         "bt_pin"
 #define NVS_KEY_LED_BRIGHTNESS "led_bright"
 #define NVS_KEY_CHANNEL_MODE   "chan_mode"
 #define NVS_KEY_SUB_OFFSET     "sub_off"
@@ -43,6 +45,15 @@ static const char *TAG = "settings";
 #define MAX_WIFI_SSID_LEN     32
 #define MAX_WIFI_PASSWORD_LEN 64
 #define MAX_DEVICE_NAME_LEN   64
+
+// Legacy pairing code used when the device has none stored. The Kconfig value
+// is the factory default, so a custom build ships with its own PIN.
+#ifndef CONFIG_BT_PIN_CODE
+#define SETTINGS_DEFAULT_BT_PIN "123456"
+#else
+#define SETTINGS_DEFAULT_BT_PIN CONFIG_BT_PIN_CODE
+#endif
+#define MAX_BT_PIN_LEN 16
 
 // Cached values. Only ever used on a board that has never stored a volume,
 // so err quiet: an amplified board at half scale is startlingly loud, and a
@@ -352,6 +363,65 @@ esp_err_t settings_set_device_name(const char *name) {
     ESP_LOGE(TAG, "Failed to save device name: %s", esp_err_to_name(err));
   }
 
+  return err;
+}
+
+static bool bt_pin_valid(const char *pin) {
+  size_t len = pin ? strlen(pin) : 0;
+  if (len == 0 || len > MAX_BT_PIN_LEN) {
+    return false;
+  }
+  for (size_t i = 0; i < len; i++) {
+    if (pin[i] < '0' || pin[i] > '9') {
+      return false;
+    }
+  }
+  return true;
+}
+
+esp_err_t settings_get_bt_pin(char *pin, size_t len) {
+  if (!pin || len < MAX_BT_PIN_LEN + 1) {
+    return ESP_ERR_INVALID_ARG;
+  }
+
+  nvs_handle_t nvs;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs);
+  if (err == ESP_OK) {
+    size_t required_size = len;
+    err = nvs_get_str(nvs, NVS_KEY_BT_PIN, pin, &required_size);
+    nvs_close(nvs);
+    if (err == ESP_OK && bt_pin_valid(pin)) {
+      return ESP_OK;
+    }
+  }
+
+  strlcpy(pin, SETTINGS_DEFAULT_BT_PIN, len);
+  return ESP_OK;
+}
+
+esp_err_t settings_set_bt_pin(const char *pin) {
+  if (!bt_pin_valid(pin)) {
+    return ESP_ERR_INVALID_ARG;
+  }
+
+  nvs_handle_t nvs;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to open NVS: %s", esp_err_to_name(err));
+    return err;
+  }
+
+  err = nvs_set_str(nvs, NVS_KEY_BT_PIN, pin);
+  if (err == ESP_OK) {
+    err = nvs_commit(nvs);
+  }
+  nvs_close(nvs);
+
+  if (err == ESP_OK) {
+    ESP_LOGI(TAG, "Saved Bluetooth PIN");
+  } else {
+    ESP_LOGE(TAG, "Failed to save Bluetooth PIN: %s", esp_err_to_name(err));
+  }
   return err;
 }
 

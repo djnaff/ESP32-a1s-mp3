@@ -106,6 +106,21 @@ esp_err_t settings_get_device_name(char *name, size_t len);
 esp_err_t settings_set_device_name(const char *name);
 
 /**
+ * Get the Bluetooth pairing PIN (returns the build default if none saved).
+ * @param pin Output buffer for the PIN (digits, NUL-terminated)
+ * @param len Size of the pin buffer, at least 17
+ * @return ESP_OK, or ESP_ERR_INVALID_ARG for a NULL buffer
+ */
+esp_err_t settings_get_bt_pin(char *pin, size_t len);
+
+/**
+ * Save the Bluetooth pairing PIN.
+ * @param pin 1-16 digits
+ * @return ESP_ERR_INVALID_ARG if the PIN is empty, too long or not numeric
+ */
+esp_err_t settings_set_bt_pin(const char *pin);
+
+/**
  * Derive a DNS/DHCP-safe hostname from a device name.
  *
  * Host names are restricted to ASCII letters, digits and hyphens (RFC 1123),
