@@ -218,16 +218,25 @@ static void use_rate(uint32_t hz) {
 
 static bool skip_id3v2(FILE *f) {
   uint8_t hdr[10];
+  bool positioned;
   if (fread(hdr, 1, sizeof(hdr), f) == sizeof(hdr) &&
       memcmp(hdr, "ID3", 3) == 0) {
     uint32_t size = ((uint32_t)(hdr[6] & 0x7f) << 21) |
                     ((uint32_t)(hdr[7] & 0x7f) << 14) |
                     ((uint32_t)(hdr[8] & 0x7f) << 7) | (hdr[9] & 0x7f);
-    return fseek(f, (long)size, SEEK_CUR) == 0 || fseek(f, 0, SEEK_SET) == 0;
+    positioned =
+        fseek(f, (long)size, SEEK_CUR) == 0 || fseek(f, 0, SEEK_SET) == 0;
+  } else {
+    // No tag: rewind. A failed seek leaves the position indeterminate, so
+    // report it rather than reading from an undefined offset.
+    positioned = fseek(f, 0, SEEK_SET) == 0;
   }
-  // No tag: rewind. A failed seek leaves the position indeterminate, so
-  // report it rather than reading from an undefined offset.
-  return fseek(f, 0, SEEK_SET) == 0;
+  if (positioned) {
+    // A short header read sets the stream's EOF/error flag; fseek repositions
+    // the file but does not clear it, and a later fread would return 0.
+    clearerr(f);
+  }
+  return positioned;
 }
 
 static void copy_span(const char *s, const char *e, char *dst, size_t cap) {
