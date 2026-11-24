@@ -46,6 +46,8 @@ void sd_player_play(int index);
 /** Move to the next/previous track, or start the first one when idle. */
 void sd_player_next(void);
 void sd_player_prev(void);
+/** Jump to the first track of the next album (parent folder), wrapping. */
+void sd_player_next_album(void);
 
 /** Stop and release the file and the amplifier. */
 void sd_player_stop(void);

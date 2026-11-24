@@ -25,6 +25,10 @@
 #include "playback_control.h"
 #include "spiram_task.h"
 
+#ifdef CONFIG_SD_PLAYER_ENABLE
+#include "sd_player.h"
+#endif
+
 #include "board_common.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
@@ -60,6 +64,7 @@ typedef enum {
   BTN_VOLUME_DOWN,
   BTN_NEXT,
   BTN_PREV,
+  BTN_NEXT_ALBUM,
   BTN_LONG_PRESS,
   // Actions below are dispatched directly (not 1:1 with a GPIO button)
   BTN_CHANNEL_CYCLE,
@@ -123,6 +128,11 @@ static void button_action_task(void *pvParameters) {
         break;
       case BTN_PREV:
         playback_control_prev();
+        break;
+      case BTN_NEXT_ALBUM:
+#ifdef CONFIG_SD_PLAYER_ENABLE
+        sd_player_next_album();
+#endif
         break;
       case BTN_LONG_PRESS:
         // Deep sleep — this is handled in the timer callback; just log
@@ -418,7 +428,8 @@ esp_err_t buttons_init(void) {
 
   if (CONFIG_BTN_PLAY_PAUSE_GPIO < 0 && CONFIG_BTN_VOLUME_UP_GPIO < 0 &&
       CONFIG_BTN_VOLUME_DOWN_GPIO < 0 && CONFIG_BTN_NEXT_GPIO < 0 &&
-      CONFIG_BTN_PREV_GPIO < 0 && !BTN_ROTARY_ENABLED) {
+      CONFIG_BTN_PREV_GPIO < 0 && CONFIG_BTN_NEXT_ALBUM_GPIO < 0 &&
+      !BTN_ROTARY_ENABLED) {
     ESP_LOGI(TAG, "No buttons configured");
     return ESP_OK;
   }
@@ -444,6 +455,12 @@ esp_err_t buttons_init(void) {
   configure_button(BTN_VOLUME_DOWN, CONFIG_BTN_VOLUME_DOWN_GPIO, true);
   configure_button(BTN_NEXT, CONFIG_BTN_NEXT_GPIO, false);
   configure_button(BTN_PREV, CONFIG_BTN_PREV_GPIO, false);
+  configure_button(BTN_NEXT_ALBUM, CONFIG_BTN_NEXT_ALBUM_GPIO, false);
+#if CONFIG_BTN_NEXT_ALBUM_GPIO >= 0
+  ESP_LOGI(TAG, "Next-album key GPIO %d idle level %d",
+           CONFIG_BTN_NEXT_ALBUM_GPIO,
+           gpio_get_level(CONFIG_BTN_NEXT_ALBUM_GPIO));
+#endif
 
 #if BTN_ROTARY_ENABLED
   configure_rotary();

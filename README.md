@@ -46,12 +46,14 @@ ES8388 codec, two NS4150 amplifiers) and a local MP3 player for the board's SD s
 - **SD player**: scans `/music` recursively (up to 1000 files, six levels), plays MP3 in
   relative-path order, and shows an **Album → Track** picker on the Overview page. Titles
   come from file names; album is the parent folder and artist the folder above it.
-  AirPlay and Bluetooth take priority, and the player releases its decoder while idle.
+  AirPlay and Bluetooth take priority; its decoder stays loaded so a new track starts
+  instantly.
 - **Buttons**: KEY4 (GPIO23) play/pause, KEY5 (GPIO18) volume up, KEY6 (GPIO5) volume
-  down, KEY3 (GPIO19) next, KEY2 (GPIO13) previous. KEY2 needs DIP switch 1
-  (IO13-KEY2) ON; switch 2 (IO13-DATA3) must stay off for 1-bit SDMMC. KEY1 (GPIO36) is
-  unused. Playback must be started from the web page; the keys then control the active
-  source.
+  down, KEY2 (GPIO13) previous, KEY3 (GPIO19) next, KEY1 (GPIO36) next album (SD player
+  only, needs an external pull-up). KEY2 needs DIP switch 1 (IO13-KEY2) ON; switch 2
+  (IO13-DATA3) must stay off for 1-bit SDMMC. Playback must be started from the web page;
+  the keys then control the active source. In AirPlay 2 only volume works; play/pause
+  and next/previous need **AirPlay Legacy (v1)** with DACP control enabled.
 - **Not included**: ID3 tags, cover art, FLAC. The 3.5 mm jack and the speaker outputs are
   both live; there is no jack switching, so the speakers also play while headphones are
   connected.
@@ -68,9 +70,9 @@ pio run -e esp32-a1s-4m -t upload
 DIP switch **3 (IO15-CMD) must be ON** for the SD card (1-bit SDMMC). See
 [the board page](docs/boards/esp32-a1s.md) for pins, limits and the Volume/PA behaviour.
 
-> **Before using the SD card:** set DIP switch **3 (IO15-CMD)** to **ON**. Without it the
-> card is not detected. Switch 2 (IO13-DATA3) can stay off; switch 1 (IO13-KEY2) is only
-> needed if you want the Previous key.
+> **Before using the SD card and keys:** set DIP switch **1 (IO13-KEY2) ON** for the
+> Previous key, switch **2 (IO13-DATA3) OFF** for 1-bit SDMMC, and switch
+> **3 (IO15-CMD) ON** or the card is not detected.
 
 ## Quick start
 

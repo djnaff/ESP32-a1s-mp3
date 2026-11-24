@@ -675,6 +675,14 @@ menu "Airplay ESP Configuration"
                 GPIO pin for the previous track button (active-low, internal pull-up).
                 Set to -1 to disable.
 
+        config BTN_NEXT_ALBUM_GPIO
+            int "Next Album button GPIO (-1 to disable)"
+            default -1
+            range -1 48
+            help
+                GPIO pin for a next-album button (active-low). Only used by the
+                SD card player, where an album is a folder. Set to -1 to disable.
+
         config BTN_PLAY_PAUSE_DOUBLE_CLICK
             bool "Play/Pause double-click cycles channel mode"
             default n

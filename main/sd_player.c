@@ -285,14 +285,19 @@ static void end_session(void) {
   }
   s_playing = false;
   playback_events_emit(PLAYBACK_SOURCE_SD, PLAYBACK_EVENT_DISCONNECTED, NULL);
-  // Hand the source back to whoever is still connected (Bluetooth or AirPlay
-  // may have been the reason we stopped) rather than always clearing it.
-  playback_source_t active = playback_events_active_source();
-  playback_control_set_source(active == PLAYBACK_SOURCE_SD ? PLAYBACK_SOURCE_NONE
-                                                           : active);
   if (s_i2s_rate != CONFIG_OUTPUT_SAMPLE_RATE_HZ) {
     audio_output_set_sample_rate(CONFIG_OUTPUT_SAMPLE_RATE_HZ);
     s_i2s_rate = CONFIG_OUTPUT_SAMPLE_RATE_HZ;
+  }
+  // Hand the output back. AirPlay services are started at boot whether or not
+  // a session is open, so an idle output belongs to AirPlay again; its render
+  // task was stopped when the card session began and has to be restarted.
+  playback_source_t active = playback_events_active_source();
+  if (active == PLAYBACK_SOURCE_BLUETOOTH || active == PLAYBACK_SOURCE_USB) {
+    playback_control_set_source(active);
+  } else {
+    playback_control_set_source(PLAYBACK_SOURCE_AIRPLAY);
+    audio_output_start();
   }
 }
 
@@ -313,26 +318,28 @@ static size_t convert_pcm(uint8_t *buf, size_t bytes, int channels) {
 static void player_task(void *arg) {
   (void)arg;
 
-  // Resources exist only while a session is open: AirPlay needs the decoder
-  // and PSRAM back as soon as the card player goes idle.
-  int16_t *pcm = NULL;
-  uint8_t *buf = NULL;
+  int16_t *pcm = heap_caps_malloc(SD_PCM_BYTES, MALLOC_CAP_SPIRAM);
+  uint8_t *buf = heap_caps_malloc(SD_READ_BYTES, MALLOC_CAP_SPIRAM);
   void *dec_mp3 = NULL;
+  esp_audio_err_t mp3_err = esp_mp3_dec_open(NULL, 0, &dec_mp3);
+  if (!pcm || !buf || mp3_err != ESP_AUDIO_ERR_OK) {
+    ESP_LOGE(TAG, "MP3 decoder/buffers unavailable (mp3=%d)", mp3_err);
+    free(pcm);
+    free(buf);
+    if (dec_mp3) {
+      esp_mp3_dec_close(dec_mp3);
+    }
+    s_task = NULL;
+    vTaskDelete(NULL);
+    return;
+  }
+
   bool last_paused = false;
 
   for (;;) {
     if (!s_want_play) {
       end_session();
       last_paused = false;
-      // Hand the decoder and its PSRAM back to the rest of the system.
-      if (dec_mp3) {
-        esp_mp3_dec_close(dec_mp3);
-        dec_mp3 = NULL;
-      }
-      free(pcm);
-      pcm = NULL;
-      free(buf);
-      buf = NULL;
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
       continue;
     }
@@ -341,31 +348,6 @@ static void player_task(void *arg) {
     if (idx < 0 || idx >= s_count) {
       s_want_play = false;
       continue;
-    }
-
-    if (!pcm || !buf || !dec_mp3) {
-      if (!pcm) {
-        pcm = heap_caps_malloc(SD_PCM_BYTES, MALLOC_CAP_SPIRAM);
-      }
-      if (!buf) {
-        buf = heap_caps_malloc(SD_READ_BYTES, MALLOC_CAP_SPIRAM);
-      }
-      if (!dec_mp3 && esp_mp3_dec_open(NULL, 0, &dec_mp3) != ESP_AUDIO_ERR_OK) {
-        dec_mp3 = NULL;
-      }
-      if (!pcm || !buf || !dec_mp3) {
-        ESP_LOGE(TAG, "SD player resources unavailable");
-        free(pcm);
-        pcm = NULL;
-        free(buf);
-        buf = NULL;
-        if (dec_mp3) {
-          esp_mp3_dec_close(dec_mp3);
-          dec_mp3 = NULL;
-        }
-        s_want_play = false;
-        continue;
-      }
     }
 
     xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -638,6 +620,11 @@ void sd_player_play(int index) {
   if (audio_output_init() != ESP_OK) {
     ESP_LOGD(TAG, "Audio output already up");
   }
+  // Take the output: AirPlay's render task would otherwise write into the
+  // same DMA ring, which is audible as warble. It is restarted in
+  // end_session() when the card player finishes.
+  audio_output_stop();
+  audio_output_flush();
   if (playback_events_any_connected() &&
       playback_events_active_source() != PLAYBACK_SOURCE_SD) {
     ESP_LOGW(TAG, "Another source is connected; not starting");
@@ -682,6 +669,44 @@ void sd_player_prev(void) {
   s_index = (s_index + s_count - 1) % s_count;
   s_seek = true;
   xTaskNotifyGive(s_task);
+}
+
+// An album is the track's parent folder, so "next album" is the first later
+// track whose folder differs. Wraps around to the first album at the end.
+void sd_player_next_album(void) {
+  if (!s_task || s_count == 0) {
+    return;
+  }
+  if (!s_want_play) {
+    sd_player_play(0);
+    return;
+  }
+  int cur = s_index;
+  if (cur < 0 || cur >= s_count) {
+    return;
+  }
+
+  char title[SD_TEXT_MAX];
+  char artist[SD_TEXT_MAX];
+  char cur_album[SD_TEXT_MAX];
+  char album[SD_TEXT_MAX];
+  split_labels(track_name(cur), title, sizeof(title), artist, sizeof(artist),
+               cur_album, sizeof(cur_album));
+
+  for (int pass = 0; pass < 2; pass++) {
+    int first = pass == 0 ? cur + 1 : 0;
+    int last = pass == 0 ? s_count : cur;
+    for (int i = first; i < last; i++) {
+      split_labels(track_name(i), title, sizeof(title), artist, sizeof(artist),
+                   album, sizeof(album));
+      if (strcmp(album, cur_album) != 0) {
+        sd_player_play(i);
+        return;
+      }
+    }
+  }
+  // Only one album on the card: start it again.
+  sd_player_play(0);
 }
 
 void sd_player_stop(void) {

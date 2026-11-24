@@ -39,10 +39,13 @@ CONFIG_LED_STATUS_STANDBY_BLINK_SLOW=y
 CONFIG_BTN_PLAY_PAUSE_GPIO=23
 CONFIG_BTN_VOLUME_UP_GPIO=18
 CONFIG_BTN_VOLUME_DOWN_GPIO=5
-# Previous = KEY3 (19), next = KEY2 (13). KEY2 needs DIP switch 1 (IO13-KEY2)
+# Previous = KEY2 (13), next = KEY3 (19). KEY2 needs DIP switch 1 (IO13-KEY2)
 # ON; the SD player uses 1-bit mode, so switch 2 (IO13-DATA3) stays off.
-CONFIG_BTN_PREV_GPIO=19
-CONFIG_BTN_NEXT_GPIO=13
+CONFIG_BTN_PREV_GPIO=13
+CONFIG_BTN_NEXT_GPIO=19
+# KEY1 (GPIO36) jumps to the next album in the SD player. It is input-only
+# with no internal pull-up, so it needs an external one to idle high.
+CONFIG_BTN_NEXT_ALBUM_GPIO=36
 
 # No display, no Ethernet on this board.
 CONFIG_DISPLAY_ENABLED=n
