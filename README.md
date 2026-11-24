@@ -63,6 +63,10 @@ pio run -e esp32-a1s-4m -t upload
 DIP switch **3 (IO15-CMD) must be ON** for the SD card (1-bit SDMMC). See
 [the board page](docs/boards/esp32-a1s.md) for pins, limits and the Volume/PA behaviour.
 
+> **Before using the SD card:** set DIP switch **3 (IO15-CMD)** to **ON**. Without it the
+> card is not detected. Switch 2 (IO13-DATA3) can stay off; switch 1 (IO13-KEY2) is only
+> needed if you want the Previous key.
+
 ## Quick start
 
 The fastest route is the browser installer — no toolchain, no command line:
