@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head>
+﻿<!DOCTYPE html><html><head>
 <meta charset='UTF-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>Speaker - AirPlay Receiver</title>
@@ -42,6 +42,21 @@
 <div id='ss-msg' class='msg'></div></div>
 </div>
 </div>
+<div class='card' id='sd-card' hidden><h2>SD card</h2>
+<div class='form-group'><label for='sd-album'>Album</label>
+<div class='row'><select id='sd-album' onchange='sdAlbumChanged()'></select></div>
+<label for='sd-track'>Track</label>
+<div class='row'><select id='sd-track'></select>
+<button class='btn btn-primary' onclick='sdPlay()'>Play</button></div>
+<p class='hint' id='sd-hint'>MP3 files on the card, grouped by folder.</p></div>
+<div class='actions'>
+<button class='btn btn-secondary' onclick='sdCmd("prev")'>Previous</button>
+<button class='btn btn-secondary' onclick='sdCmd("pause")'>Pause</button>
+<button class='btn btn-secondary' onclick='sdCmd("next")'>Next</button>
+<button class='btn btn-secondary' onclick='sdCmd("stop")'>Stop</button>
+<button class='btn btn-secondary' onclick='sdRefresh()'>Refresh</button>
+</div>
+<div id='sd-msg' class='msg'></div></div>
 <div class='card' id='audio'><h2>Audio</h2>
 <div class='form-group' id='chan-group'><label for='chan-mode' id='chan-label'>Output channel</label>
 <div class='row'><select id='chan-mode' onchange='saveChannel()'>
@@ -112,9 +127,9 @@ var chanLocked=false,dualDevices=1;
 var wiring={pbtl:false,dual:true};
 var WARN={
   pbtl:{1:'Bridge the primary amplifier?\n\nIt is reconfigured as PBTL mono: its OUT_A and OUT_B terminals must be bridged together and wired to a single driver.\n\nPower off and rewire.',
-        0:'Unbridge the primary amplifier?\n\nIt runs as a stereo BTL pair, driving two separate speakers.\n\nIf OUT_A and OUT_B are still bridged for PBTL you MUST un-bridge them first — leaving them shorted drives the two outputs against each other and can damage the amplifier and its output filters.'},
+        0:'Unbridge the primary amplifier?\n\nIt runs as a stereo BTL pair, driving two separate speakers.\n\nIf OUT_A and OUT_B are still bridged for PBTL you MUST un-bridge them first â€” leaving them shorted drives the two outputs against each other and can damage the amplifier and its output filters.'},
   dual:{1:'Bridge the second amplifier?\n\nIt is reconfigured as PBTL mono: its OUT_A and OUT_B terminals must be bridged together and wired to a single driver.\n\nPower off and rewire.',
-        0:'Unbridge the second amplifier?\n\nIt runs as a stereo BTL pair, driving two separate speakers.\n\nIf OUT_A and OUT_B are still bridged for PBTL you MUST un-bridge them first — leaving them shorted drives the two outputs against each other and can damage the amplifier and its output filters.'}
+        0:'Unbridge the second amplifier?\n\nIt runs as a stereo BTL pair, driving two separate speakers.\n\nIf OUT_A and OUT_B are still bridged for PBTL you MUST un-bridge them first â€” leaving them shorted drives the two outputs against each other and can damage the amplifier and its output filters.'}
 };
 
 /* With two amps the DAC configuration fixes the routing, so per-output
@@ -199,7 +214,7 @@ function showSupply(p){
   }
   (p.choices||[]).slice().reverse().forEach(function(c){
     var t=c+' V';
-    if(p.pd)t+=offered[c]?' — '+(offered[c]/1000).toFixed(1)+' A':' (not offered)';
+    if(p.pd)t+=offered[c]?' â€” '+(offered[c]/1000).toFixed(1)+' A':' (not offered)';
     /* A charger that cannot give the voltage asked for gives less. */
     if(!p.auto&&c===p.volts&&now&&now!==c)t+=', getting '+now+' V';
     h+="<option value='"+c+"'>"+t+'</option>';
@@ -393,15 +408,15 @@ function startOTA(){
   if(!confirm('Install '+f.name+' and restart?\n\nPlayback stops while it installs.'))return;
   $('ota-btn').disabled=true;
   var bar=$('ota-bar');bar.hidden=false;
-  msg('ota-msg','Uploading…','info');
+  msg('ota-msg','Uploadingâ€¦','info');
   var x=new XMLHttpRequest();
   x.open('POST','/api/ota/update');
   x.setRequestHeader('Content-Type','application/octet-stream');
   x.upload.onprogress=function(e){
     if(e.lengthComputable)bar.firstChild.style.width=(100*e.loaded/e.total).toFixed(1)+'%';};
   x.onload=function(){
-    if(x.status===200){msg('ota-msg','Installed. Restarting…','ok');
-      Shell.waitForRestart('Installed; restarting… the page reloads when the device is back.');}
+    if(x.status===200){msg('ota-msg','Installed. Restartingâ€¦','ok');
+      Shell.waitForRestart('Installed; restartingâ€¦ the page reloads when the device is back.');}
     else{msg('ota-msg','Not installed: '+(x.responseText||('HTTP '+x.status)),'err');
       $('ota-btn').disabled=false;}};
   /* The device restarts as soon as it has answered, which can cut the
@@ -422,4 +437,47 @@ led.onchange=async function(){
 Shell.get('/api/led/brightness').then(function(d){
   if(d.success){led.value=d.brightness;ledPct();}}).catch(function(){});
 
+var sdTracks=[];
+function sdAlbumChanged(){
+  var a=$('sd-album').value;
+  var sel=$('sd-track');sel.innerHTML='';
+  sdTracks.forEach(function(t,i){
+    if((t.album||'')!==a)return;
+    var o=document.createElement('option');
+    o.value=i;o.textContent=t.title||t.name;
+    sel.appendChild(o);});
+}
+async function sdRefresh(){
+  try{
+    var d=await Shell.get('/api/sd/list');
+    sdTracks=d.tracks||[];
+    var albums=[];
+    sdTracks.forEach(function(t){var a=t.album||'';if(albums.indexOf(a)<0)albums.push(a);});
+    albums.sort();
+    var asel=$('sd-album');asel.innerHTML='';
+    albums.forEach(function(a){var o=document.createElement('option');
+      o.value=a;o.textContent=a||'(no album)';asel.appendChild(o);});
+    var cur=(d.current>=0&&sdTracks[d.current])?sdTracks[d.current]:null;
+    asel.value=cur?(cur.album||''):(albums[0]||'');
+    sdAlbumChanged();
+    if(d.current>=0&&cur&&(cur.album||'')===asel.value)$('sd-track').value=d.current;
+    $('sd-card').hidden=false;
+    $('sd-hint').textContent=d.count?
+      (d.count+' track'+(d.count===1?'':'s')+
+       (d.playing?' - playing':(d.paused?' - paused':''))+
+       (cur&&cur.album?' - '+cur.album:''))
+      :'No MP3 files found. Put them in /music on the card and press Refresh.';
+  }catch(e){$('sd-card').hidden=true;}
+}
+function sdPlay(){
+  Shell.post('/api/sd/control',{action:'play',index:Number($('sd-track').value)})
+    .then(sdRefresh).catch(function(e){msg('sd-msg',e.message,'err');});
+}
+function sdCmd(a){
+  Shell.post('/api/sd/control',{action:a}).then(sdRefresh)
+    .catch(function(e){msg('sd-msg',e.message,'err');});
+}
+sdRefresh();
+
 </script></body></html>
+

@@ -29,6 +29,9 @@ Every PlatformIO environment defined in `platformio.ini`. The default is `esp32s
 | `esparagus-louder-bt` | ESP32 | TAS58xx | 8 MB | yes |
 | `esparagus-louder-s3` | ESP32-S3 | TAS58xx | 8 MB | — |
 | `smartamp` | ESP32 | — | 4 MB | yes |
+| `esp32-a1s` | ESP32 | ES8388 + 2× NS4150 | 8 MB | — |
+| `esp32-a1s-bt` | ESP32 | ES8388 + 2× NS4150 | 8 MB | yes |
+| `esp32-a1s-4m` | ESP32 | ES8388 + 2× NS4150 | 4 MB | — |
 
 Every Esparagus board is fitted with a TAS58xx amplifier, either a TAS5825M or a TAS5805M.
 The driver reads the die ID at startup and configures whichever it finds, so the

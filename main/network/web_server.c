@@ -39,6 +39,10 @@
 #include "sendspin.h"
 #endif
 
+#ifdef CONFIG_SD_PLAYER_ENABLE
+#include "sd_player.h"
+#endif
+
 #ifdef CONFIG_DAC_TAS58XX
 #include "dac_tas58xx.h"
 #endif
@@ -1515,10 +1519,145 @@ static const char *source_name(playback_source_t source) {
     return "usb";
   case PLAYBACK_SOURCE_SENDSPIN:
     return "sendspin";
+  case PLAYBACK_SOURCE_SD:
+    return "sd";
   default:
     return "";
   }
 }
+
+#ifdef CONFIG_SD_PLAYER_ENABLE
+// Minimal JSON string escaper for the streaming list.
+static size_t json_escape(char *dst, size_t cap, const char *src) {
+  size_t o = 0;
+  for (const unsigned char *p = (const unsigned char *)src;
+       *p && o + 7 < cap; p++) {
+    switch (*p) {
+    case '"':
+      dst[o++] = '\\';
+      dst[o++] = '"';
+      break;
+    case '\\':
+      dst[o++] = '\\';
+      dst[o++] = '\\';
+      break;
+    case '\n':
+      dst[o++] = '\\';
+      dst[o++] = 'n';
+      break;
+    case '\r':
+      dst[o++] = '\\';
+      dst[o++] = 'r';
+      break;
+    case '\t':
+      dst[o++] = '\\';
+      dst[o++] = 't';
+      break;
+    default:
+      if (*p < 0x20) {
+        o += (size_t)snprintf(dst + o, cap - o, "\\u%04x", *p);
+      } else {
+        dst[o++] = (char)*p;
+      }
+    }
+  }
+  dst[o] = '\0';
+  return o;
+}
+
+static esp_err_t sd_list_handler(httpd_req_t *req) {
+  const int count = sd_player_get_track_count();
+  httpd_resp_set_type(req, "application/json");
+
+  char head[160];
+  snprintf(head, sizeof(head),
+           "{\"count\":%d,\"current\":%d,\"playing\":%s,\"paused\":%s,"
+           "\"tracks\":[",
+           count, sd_player_get_current(),
+           sd_player_is_playing() ? "true" : "false",
+           sd_player_is_paused() ? "true" : "false");
+  if (httpd_resp_send_chunk(req, head, HTTPD_RESP_USE_STRLEN) != ESP_OK) {
+    return ESP_FAIL;
+  }
+
+  for (int i = 0; i < count; i++) {
+    const char *name = sd_player_get_track_name(i);
+    if (!name) {
+      continue;
+    }
+    // Static: the httpd task stack is small and this handler is serialised.
+    static char t_title[64];
+    static char t_artist[64];
+    static char t_album[64];
+    static char ename[400];
+    static char etitle[130];
+    static char eartist[130];
+    static char ealbum[130];
+    sd_player_get_track_meta(i, t_title, sizeof(t_title), t_artist,
+                             sizeof(t_artist), t_album, sizeof(t_album));
+    json_escape(ename, sizeof(ename), name);
+    json_escape(etitle, sizeof(etitle), t_title[0] ? t_title : name);
+    json_escape(eartist, sizeof(eartist), t_artist);
+    json_escape(ealbum, sizeof(ealbum), t_album);
+    static char item[960];
+    int n = snprintf(item, sizeof(item),
+                     "%s{\"name\":\"%s\",\"title\":\"%s\",\"artist\":\"%s\","
+                     "\"album\":\"%s\"}",
+                     i ? "," : "", ename, etitle, eartist, ealbum);
+    if (n <= 0 || n >= (int)sizeof(item)) {
+      continue;
+    }
+    if (httpd_resp_send_chunk(req, item, (ssize_t)n) != ESP_OK) {
+      return ESP_FAIL;
+    }
+  }
+  httpd_resp_send_chunk(req, "]}", 2);
+  httpd_resp_send_chunk(req, NULL, 0);
+  return ESP_OK;
+}
+
+static esp_err_t sd_control_handler(httpd_req_t *req) {
+  char *content = recv_body(req, 128);
+  if (!content) {
+    httpd_resp_send_500(req);
+    return ESP_FAIL;
+  }
+  cJSON *json = cJSON_Parse(content);
+  free(content);
+  if (!json) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+    return ESP_FAIL;
+  }
+
+  const cJSON *action = cJSON_GetObjectItem(json, "action");
+  const cJSON *index = cJSON_GetObjectItem(json, "index");
+  if (cJSON_IsString(action)) {
+    const char *a = action->valuestring;
+    if (strcmp(a, "play") == 0) {
+      sd_player_play(cJSON_IsNumber(index) ? index->valueint : 0);
+    } else if (strcmp(a, "stop") == 0) {
+      sd_player_stop();
+    } else if (strcmp(a, "next") == 0) {
+      sd_player_next();
+    } else if (strcmp(a, "prev") == 0) {
+      sd_player_prev();
+    } else if (strcmp(a, "pause") == 0) {
+      sd_player_toggle_pause();
+    } else if (strcmp(a, "rescan") == 0) {
+      sd_player_refresh();
+    } else {
+      cJSON_Delete(json);
+      httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Unknown action");
+      return ESP_FAIL;
+    }
+  }
+
+  cJSON_Delete(json);
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_send(req, "{\"success\":true}", HTTPD_RESP_USE_STRLEN);
+  return ESP_OK;
+}
+#endif // CONFIG_SD_PLAYER_ENABLE
 
 /* Everything the status strip at the top of each page shows, in one request,
  * so a page polls one endpoint: the link, what is playing, the volume, and
@@ -3475,6 +3614,17 @@ esp_err_t web_server_start(uint16_t port) {
   httpd_uri_t status_uri = {
       .uri = "/api/status", .method = HTTP_GET, .handler = status_handler};
   register_uri(&status_uri);
+
+#ifdef CONFIG_SD_PLAYER_ENABLE
+  httpd_uri_t sd_list_uri = {
+      .uri = "/api/sd/list", .method = HTTP_GET, .handler = sd_list_handler};
+  register_uri(&sd_list_uri);
+
+  httpd_uri_t sd_control_uri = {.uri = "/api/sd/control",
+                                .method = HTTP_POST,
+                                .handler = sd_control_handler};
+  register_uri(&sd_control_uri);
+#endif
 
   httpd_uri_t system_info_uri = {.uri = "/api/system/info",
                                  .method = HTTP_GET,

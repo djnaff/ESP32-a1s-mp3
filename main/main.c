@@ -43,6 +43,10 @@
 #include "sendspin.h"
 #endif
 
+#ifdef CONFIG_SD_PLAYER_ENABLE
+#include "sd_player.h"
+#endif
+
 #ifdef CONFIG_DAC_TAS57XX
 #include "dac_tas57xx.h"
 #endif
@@ -470,6 +474,12 @@ void app_main(void) {
   // display/LVGL port is ready.
   iot_board_init_lvgl_resources();
   log_dram("board+display");
+
+  // SD player: the output channel itself is created lazily when a track (or
+  // AirPlay) first needs it.
+#ifdef CONFIG_SD_PLAYER_ENABLE
+  sd_player_init();
+#endif
 
   // Try ethernet first
   bool eth_available = false;

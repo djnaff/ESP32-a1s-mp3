@@ -32,6 +32,7 @@ original ESP32.
 | Board | Chip | DAC / amp | Bluetooth | Ethernet | Prebuilt binary |
 | --- | --- | --- | :-: | :-: | :-: |
 | [ESP32-S3 + PCM5102A](esp32s3-pcm5102a.md) | ESP32-S3 | External I2S | — | — | yes |
+| [AI-Thinker ESP32-A1S Audio Kit](esp32-a1s.md) | ESP32 | ES8388 + 2× NS4150 | yes | — | — |
 | [Waveshare ESP32-S3](esp32s3-pcm5102a.md#waveshare-esp32-s3) | ESP32-S3 | External I2S | — | — | yes |
 | [SqueezeAMP](squeezeamp.md) | ESP32 | TAS5756 | yes | — | yes |
 | [Esparagus Audio Brick](esparagus-audio-brick.md) | ESP32 / S3 | TAS58xx | ESP32 only | yes | yes |

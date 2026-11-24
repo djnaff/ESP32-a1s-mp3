@@ -40,6 +40,10 @@
 #include "sendspin.h"
 #endif
 
+#ifdef CONFIG_SD_PLAYER_ENABLE
+#include "sd_player.h"
+#endif
+
 static const char *TAG = "playback_ctrl";
 
 #define VOLUME_STEP_DB 3.0f
@@ -187,6 +191,11 @@ void playback_control_play_pause(void) {
     }
     break;
 #endif
+#ifdef CONFIG_SD_PLAYER_ENABLE
+  case PLAYBACK_SOURCE_SD:
+    sd_player_toggle_pause();
+    break;
+#endif
   default:
     ESP_LOGI(TAG, "Play/pause: no active source (source=%d)", s_source);
     break;
@@ -197,6 +206,7 @@ void playback_control_volume_up(void) {
   switch (s_source) {
   case PLAYBACK_SOURCE_AIRPLAY:
   case PLAYBACK_SOURCE_SENDSPIN:
+  case PLAYBACK_SOURCE_SD:
     local_adjust_volume(VOLUME_STEP_DB);
     break;
 #ifdef CONFIG_BT_A2DP_ENABLE
@@ -218,6 +228,7 @@ void playback_control_volume_down(void) {
   switch (s_source) {
   case PLAYBACK_SOURCE_AIRPLAY:
   case PLAYBACK_SOURCE_SENDSPIN:
+  case PLAYBACK_SOURCE_SD:
     local_adjust_volume(-VOLUME_STEP_DB);
     break;
 #ifdef CONFIG_BT_A2DP_ENABLE
@@ -256,6 +267,11 @@ void playback_control_next(void) {
     sendspin_send_command(SENDSPIN_CMD_NEXT);
     break;
 #endif
+#ifdef CONFIG_SD_PLAYER_ENABLE
+  case PLAYBACK_SOURCE_SD:
+    sd_player_next();
+    break;
+#endif
   default:
     break;
   }
@@ -280,6 +296,11 @@ void playback_control_prev(void) {
 #ifdef CONFIG_SENDSPIN_ENABLE
   case PLAYBACK_SOURCE_SENDSPIN:
     sendspin_send_command(SENDSPIN_CMD_PREVIOUS);
+    break;
+#endif
+#ifdef CONFIG_SD_PLAYER_ENABLE
+  case PLAYBACK_SOURCE_SD:
+    sd_player_prev();
     break;
 #endif
   default:

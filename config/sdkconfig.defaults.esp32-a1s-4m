@@ -1,0 +1,10 @@
+# Ai-Thinker ESP32-A1S Audio Kit V2.2 — 4 MB flash variant
+# The datasheet says 4 MB but most boards sold today carry 8 MB; check with
+#   esptool -p <port> flash-id
+# and use the esp32-a1s environment unless this one is what you have. A 4 MB
+# layout cannot hold Bluetooth and Sendspin at the same time.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="components/boards/partitions-4m.csv"
+
+CONFIG_SENDSPIN_ENABLE=n

@@ -112,6 +112,54 @@ menu "Airplay ESP Configuration"
         endmenu
     endmenu
 
+    menu "SD Card Player"
+        config SD_PLAYER_ENABLE
+            bool "Play MP3 files from an SD card"
+            default n
+            help
+                Scan one folder on an SD card for .mp3 files and play them in
+                filename order through the same I2S output as the other
+                sources. AirPlay and Bluetooth take priority: connecting
+                either stops local playback.
+
+        if SD_PLAYER_ENABLE
+
+        config SD_MOUNT_POINT
+            string "Mount point"
+            default "/sdcard"
+            help
+                VFS path the card is mounted at.
+
+        config SD_MUSIC_DIR
+            string "Music folder"
+            default "/sdcard/music"
+            help
+                Absolute VFS path to scan. If it does not exist, the card root
+                is used instead.
+
+        config SD_CLK_GPIO
+            int "SD card CLK GPIO"
+            default -1
+            help
+                Clock line of the SD card slot. Set to -1 to disable the
+                player.
+
+        config SD_CMD_GPIO
+            int "SD card CMD GPIO"
+            default -1
+            help
+                Command line of the SD card slot (MOSI in SPI mode).
+
+        config SD_D0_GPIO
+            int "SD card D0 GPIO"
+            default -1
+            help
+                Data line 0 of the SD card slot (MISO in SPI mode). The
+                player uses 1-bit mode, so D1-D3 are not needed.
+
+        endif
+    endmenu
+
     menu "WiFi Configuration"
     config DEFAULT_AP_SSID
         string "Access Point SSID"

@@ -1,0 +1,57 @@
+# Ai-Thinker ESP32-A1S Audio Kit V2.2
+# ESP32-WROVER + ES8388 codec + 2x NS4150 amp. Flash is 4 MB on the datasheet
+# and 8 MB on the modules most sellers ship today; this file describes the
+# 8 MB layout, and sdkconfig.defaults.esp32-a1s-4m overrides it for 4 MB.
+CONFIG_BOARD_ESP32_A1S=y
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="components/boards/partitions.csv"
+
+# ES8388 codec (I2C address 0x10). Full AirPlay volume maps to -6 dB on the
+# codec; the NS4150s sit after it, so 0 dB is louder than the speakers want.
+CONFIG_DAC_ES8388=y
+CONFIG_ES8388_MAX_VOLUME=-6
+
+# GPIO config
+# The A1S module wires the codec's MCLK to GPIO0, so BOOT cannot be a button.
+CONFIG_I2S_SCK_IO=0
+CONFIG_I2S_BCK_IO=27
+CONFIG_I2S_WS_IO=25
+CONFIG_I2S_DO_IO=26
+CONFIG_DAC_I2C_SDA=33
+CONFIG_DAC_I2C_SCL=32
+# Shared enable line of the two NS4150 speaker amplifiers (active high).
+CONFIG_DAC_ENABLE_GPIO=21
+
+# Native AirPlay rate; the ESP32 has no FPU, so skip the 44.1 -> 48 kHz
+# resampler (RESAMPLER_TAPS would drop to 12 taps there anyway).
+CONFIG_OUTPUT_SAMPLE_RATE_44100=y
+
+# Green LED on GPIO22, active low.
+CONFIG_LED_STATUS_GPIO=22
+CONFIG_LED_STATUS_BRIGHTNESS=60
+CONFIG_LED_STATUS_PLAYING_STEADY=y
+CONFIG_LED_STATUS_PAUSED_BLINK_MEDIUM=y
+CONFIG_LED_STATUS_STANDBY_BLINK_SLOW=y
+
+# KEY4/KEY5/KEY6 = GPIO23/18/5. KEY1 is ADC-only (36), KEY2 shares the SD
+# card's CS (13) and KEY3 shares the D5 LED (19), so they are left alone.
+CONFIG_BTN_PLAY_PAUSE_GPIO=23
+CONFIG_BTN_VOLUME_UP_GPIO=18
+CONFIG_BTN_VOLUME_DOWN_GPIO=5
+# Previous = KEY3 (19), next = KEY2 (13). KEY2 needs DIP switch 1 (IO13-KEY2)
+# ON; the SD player uses 1-bit mode, so switch 2 (IO13-DATA3) stays off.
+CONFIG_BTN_PREV_GPIO=19
+CONFIG_BTN_NEXT_GPIO=13
+
+# No display, no Ethernet on this board.
+CONFIG_DISPLAY_ENABLED=n
+
+# SD card player: 1-bit SDMMC (CLK 14, CMD 15, D0 2). The board's DIP switch
+# 3 (IO15-CMD) must be ON. Long filenames need FATFS_LFN; heap mode keeps the
+# 255-byte name buffers off the caller's stack.
+CONFIG_SD_PLAYER_ENABLE=y
+CONFIG_SD_CLK_GPIO=14
+CONFIG_SD_CMD_GPIO=15
+CONFIG_SD_D0_GPIO=2
+CONFIG_FATFS_LFN_HEAP=y

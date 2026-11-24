@@ -84,6 +84,11 @@ if(CONFIG_USB_AUDIO_SINK)
     list(APPEND SRC_FILES "audio/usb_audio_sink.c")
 endif()
 
+# SD-card MP3/FLAC player
+if(CONFIG_SD_PLAYER_ENABLE)
+    list(APPEND SRC_FILES "sd_player.c")
+endif()
+
 # W5500 SPI Ethernet
 if(CONFIG_ETH_W5500_ENABLED)
     list(APPEND SRC_FILES "network/ethernet.c")
@@ -136,6 +141,9 @@ set( DEPS
     audio-resampler
     esp_eth
     spiffs_storage
+    fatfs
+    sdmmc
+    esp_driver_sdmmc
 )
 
 # Bluetooth component only needed when A2DP is enabled
