@@ -29,9 +29,9 @@
 #define BOARD_LED_RGB_GPIO    CONFIG_LED_RGB_GPIO
 
 // ES8388 control bus
-#define BOARD_I2C_PORT      0
-#define BOARD_I2C_SDA_GPIO  CONFIG_DAC_I2C_SDA
-#define BOARD_I2C_SCL_GPIO  CONFIG_DAC_I2C_SCL
+#define BOARD_I2C_PORT     0
+#define BOARD_I2C_SDA_GPIO CONFIG_DAC_I2C_SDA
+#define BOARD_I2C_SCL_GPIO CONFIG_DAC_I2C_SCL
 
 // NS4150 speaker amplifier enable (both channels share this line, active
 // high). Follows playback events.

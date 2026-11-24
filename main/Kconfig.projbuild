@@ -160,6 +160,40 @@ menu "Airplay ESP Configuration"
         endif
     endmenu
 
+    menu "External Amplifier"
+        config AMP_WEBHOOK_ENABLE
+            bool "Power an external amplifier with Home Assistant webhooks"
+            default n
+            help
+                POST to a pair of Home Assistant webhook URLs so an amplifier
+                switched outside this device runs only while audio is playing.
+                The off webhook fires after the configured period with no
+                playback; shorter pauses leave the amplifier on. This is
+                separate from the on-board amplifier enable GPIO.
+
+        if AMP_WEBHOOK_ENABLE
+
+        config AMP_WEBHOOK_ON_URL
+            string "Amp-on webhook URL"
+            default ""
+            help
+                Full URL, e.g. https://homeassistant.local:8123/api/webhook/...
+                A POST with no body is sent when playback starts.
+
+        config AMP_WEBHOOK_OFF_URL
+            string "Amp-off webhook URL"
+            default ""
+            help
+                Full URL sent when playback has been stopped for long enough.
+
+        config AMP_WEBHOOK_OFF_DELAY_S
+            int "Seconds without playback before the amp-off webhook"
+            default 120
+            range 5 3600
+
+        endif
+    endmenu
+
     menu "WiFi Configuration"
     config DEFAULT_AP_SSID
         string "Access Point SSID"

@@ -47,6 +47,10 @@
 #include "sd_player.h"
 #endif
 
+#ifdef CONFIG_AMP_WEBHOOK_ENABLE
+#include "amp_webhook.h"
+#endif
+
 #ifdef CONFIG_DAC_TAS57XX
 #include "dac_tas57xx.h"
 #endif
@@ -548,6 +552,17 @@ void app_main(void) {
   task_create_spiram(network_monitor_task, "net_mon", 4096, NULL, 5, NULL,
                      NULL);
   log_dram("web server");
+
+#ifdef CONFIG_AMP_WEBHOOK_ENABLE
+  // Before AirPlay and Bluetooth start, so the first PLAYING event is seen.
+  {
+    esp_err_t amp_err = amp_webhook_init();
+    if (amp_err != ESP_OK) {
+      ESP_LOGW(TAG, "External amp webhooks not started: %s",
+               esp_err_to_name(amp_err));
+    }
+  }
+#endif
 
 #ifdef CONFIG_USB_AUDIO_SINK
   {

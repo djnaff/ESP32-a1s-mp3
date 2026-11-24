@@ -117,6 +117,27 @@ the board raises GPIO21 on `PLAYBACK_EVENT_PLAYING` and drops it on pause or dis
 There is no jack detection or output switching (GPIO39 is unreliable on these boards), so
 the speakers also play while headphones are connected.
 
+### External amplifier via Home Assistant
+
+The GPIO21 stage only covers the on-board NS4150s. If the speakers are driven by an
+amplifier that Home Assistant switches instead (a smart plug, a receiver, a DSP with a
+standby input), enable **External Amplifier** in menuconfig and set the two webhook URLs.
+The feature is off by default; the URLs live in Kconfig, so no address is compiled in
+unless you set one.
+
+- Any source starting playback POSTs the *on* URL once.
+- When nothing is playing, the *off* URL is POSTed after the configured delay (120 s by
+  default). Playing again before it expires cancels it, so gaps between tracks do not
+  power-cycle the amplifier.
+- Boot POSTs the *off* URL once, so an unplug during playback does not leave the
+  amplifier on.
+
+The request is a bodyless POST, the equivalent of `curl -k -X POST "<url>"`. The client
+presents no CA, so for Home Assistant's self-signed certificate ESP-TLS needs
+`CONFIG_ESP_TLS_INSECURE` and `CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY` enabled; without
+them the handshake is refused. That trades certificate checking for convenience on a
+trusted network, exactly like `-k`.
+
 ## SD-card MP3 player
 
 The card slot works as a local player: put audio files in `/music` on a FAT32 card (the card

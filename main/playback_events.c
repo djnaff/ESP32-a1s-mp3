@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_LISTENERS 4
+// Board (amp GPIO), LED, Bluetooth coexistence, SD player handoff, external
+// amp webhooks, and a display where one is fitted.
+#define MAX_LISTENERS 6
 
 typedef struct {
   playback_event_callback_t callback;

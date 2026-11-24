@@ -47,7 +47,7 @@ static const char *TAG = "sd_player";
 
 #define SD_MAX_TRACKS 1000
 #define SD_PATH_MAX   192
-#define SD_TEXT_MAX 64
+#define SD_TEXT_MAX   64
 #define SD_READ_BYTES (8 * 1024)
 // One MP3 frame is at most 1152 frames x 2 ch x 2 bytes = 4608 bytes.
 #define SD_FRAME_BYTES 4608
@@ -56,7 +56,7 @@ static const char *TAG = "sd_player";
 #define SD_TASK_STACK 12288
 #define SD_TASK_PRIO  10
 // Core 1 (APP CPU): core 0 carries WiFi, Bluetooth and the I2S driver.
-#define SD_TASK_CORE  1
+#define SD_TASK_CORE 1
 
 static char *s_paths; // SD_MAX_TRACKS * SD_PATH_MAX, PSRAM
 static char *s_names; // SD_MAX_TRACKS * SD_PATH_MAX, PSRAM
@@ -72,8 +72,12 @@ static volatile bool s_seek = false;
 static volatile int s_index = -1;
 static volatile bool s_playing = false;
 
-static char *track_path(int i) { return s_paths + (size_t)i * SD_PATH_MAX; }
-static char *track_name(int i) { return s_names + (size_t)i * SD_PATH_MAX; }
+static char *track_path(int i) {
+  return s_paths + (size_t)i * SD_PATH_MAX;
+}
+static char *track_name(int i) {
+  return s_names + (size_t)i * SD_PATH_MAX;
+}
 
 // ============================================================================
 // Card and folder
@@ -159,8 +163,9 @@ static void scan_dir(const char *dir, const char *rel, int depth) {
       continue;
     }
     char relpath[SD_PATH_MAX];
-    int rw = rel[0] ? snprintf(relpath, sizeof(relpath), "%s/%s", rel, ent->d_name)
-                    : snprintf(relpath, sizeof(relpath), "%s", ent->d_name);
+    int rw = rel[0]
+                 ? snprintf(relpath, sizeof(relpath), "%s/%s", rel, ent->d_name)
+                 : snprintf(relpath, sizeof(relpath), "%s", ent->d_name);
     if (rw <= 0 || rw >= (int)sizeof(relpath)) {
       continue;
     }
@@ -235,10 +240,10 @@ static void copy_span(const char *s, const char *e, char *dst, size_t cap) {
   dst[n] = '\0';
 }
 
-// "Artist/Album/title.mp3" -> title="title.mp3", album="Album", artist="Artist".
-// Folders are only labels; a missing level is left empty.
-static void split_labels(const char *rel, char *title, size_t tcap, char *artist,
-                         size_t acap, char *album, size_t lcap) {
+// "Artist/Album/title.mp3" -> title="title.mp3", album="Album",
+// artist="Artist". Folders are only labels; a missing level is left empty.
+static void split_labels(const char *rel, char *title, size_t tcap,
+                         char *artist, size_t acap, char *album, size_t lcap) {
   title[0] = '\0';
   artist[0] = '\0';
   album[0] = '\0';
@@ -378,10 +383,9 @@ static void player_task(void *arg) {
     }
     emit_metadata(title);
     last_paused = s_paused;
-    playback_events_emit(PLAYBACK_SOURCE_SD,
-                         s_paused ? PLAYBACK_EVENT_PAUSED
-                                  : PLAYBACK_EVENT_PLAYING,
-                         NULL);
+    playback_events_emit(
+        PLAYBACK_SOURCE_SD,
+        s_paused ? PLAYBACK_EVENT_PAUSED : PLAYBACK_EVENT_PLAYING, NULL);
     ESP_LOGI(TAG, "Playing %d/%d: %s", idx + 1, s_count, title);
 
     size_t avail = 0;
@@ -390,10 +394,9 @@ static void player_task(void *arg) {
     while (s_want_play && !s_seek) {
       if (s_paused != last_paused) {
         last_paused = s_paused;
-        playback_events_emit(PLAYBACK_SOURCE_SD,
-                             s_paused ? PLAYBACK_EVENT_PAUSED
-                                      : PLAYBACK_EVENT_PLAYING,
-                             NULL);
+        playback_events_emit(
+            PLAYBACK_SOURCE_SD,
+            s_paused ? PLAYBACK_EVENT_PAUSED : PLAYBACK_EVENT_PLAYING, NULL);
       }
       if (s_paused) {
         vTaskDelay(pdMS_TO_TICKS(30));
@@ -527,10 +530,10 @@ void sd_player_init(void) {
   if (s_paths) {
     return;
   }
-  s_paths = heap_caps_malloc((size_t)SD_MAX_TRACKS * SD_PATH_MAX,
-                             MALLOC_CAP_SPIRAM);
-  s_names = heap_caps_malloc((size_t)SD_MAX_TRACKS * SD_PATH_MAX,
-                             MALLOC_CAP_SPIRAM);
+  s_paths =
+      heap_caps_malloc((size_t)SD_MAX_TRACKS * SD_PATH_MAX, MALLOC_CAP_SPIRAM);
+  s_names =
+      heap_caps_malloc((size_t)SD_MAX_TRACKS * SD_PATH_MAX, MALLOC_CAP_SPIRAM);
   s_lock = xSemaphoreCreateMutex();
   if (!s_paths || !s_names || !s_lock) {
     ESP_LOGE(TAG, "Out of memory");
@@ -581,7 +584,9 @@ int sd_player_refresh(void) {
   return s_count;
 }
 
-int sd_player_get_track_count(void) { return s_count; }
+int sd_player_get_track_count(void) {
+  return s_count;
+}
 
 int sd_player_get_current(void) {
   return (s_want_play && s_index >= 0) ? s_index : -1;
@@ -606,9 +611,13 @@ void sd_player_get_track_meta(int index, char *title, size_t tcap, char *artist,
   split_labels(track_name(index), title, tcap, artist, acap, album, lcap);
 }
 
-bool sd_player_is_playing(void) { return s_playing && !s_paused; }
+bool sd_player_is_playing(void) {
+  return s_playing && !s_paused;
+}
 
-bool sd_player_is_paused(void) { return s_playing && s_paused; }
+bool sd_player_is_paused(void) {
+  return s_playing && s_paused;
+}
 
 void sd_player_play(int index) {
   if (!s_task || s_count == 0) {

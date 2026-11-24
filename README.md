@@ -56,6 +56,11 @@ ES8388 codec, two NS4150 amplifiers) and a local MP3 player for the board's SD s
   and next/previous need **AirPlay Legacy (v1)** with DACP control enabled.
 - **Bluetooth PIN**: editable on the Network page (default `123456`); it applies
   to new pairings immediately, without a restart.
+- **External amplifier (optional)**: for an amplifier switched by Home Assistant rather
+  than by GPIO21. A webhook turns it on when playback starts and off after two minutes
+  without playback; short pauses leave it on. Off by default, configured under
+  *External Amplifier* in menuconfig. See
+  [the board docs](docs/boards/esp32-a1s.md#external-amplifier-via-home-assistant).
 - **Not included**: ID3 tags, cover art, FLAC. The 3.5 mm jack and the speaker outputs are
   both live; there is no jack switching, so the speakers also play while headphones are
   connected.

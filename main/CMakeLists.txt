@@ -89,6 +89,11 @@ if(CONFIG_SD_PLAYER_ENABLE)
     list(APPEND SRC_FILES "sd_player.c")
 endif()
 
+# External amplifier power state, reported to Home Assistant over webhooks
+if(CONFIG_AMP_WEBHOOK_ENABLE)
+    list(APPEND SRC_FILES "amp_webhook.c")
+endif()
+
 # W5500 SPI Ethernet
 if(CONFIG_ETH_W5500_ENABLED)
     list(APPEND SRC_FILES "network/ethernet.c")

@@ -110,8 +110,7 @@ esp_err_t iot_board_init(void) {
   };
   err = i2c_new_master_bus(&i2c_cfg, &s_i2c_dac_bus_handle);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to initialize DAC I2C bus: %s",
-             esp_err_to_name(err));
+    ESP_LOGE(TAG, "Failed to initialize DAC I2C bus: %s", esp_err_to_name(err));
     goto fail;
   }
   ESP_LOGI(TAG, "DAC I2C bus %d initialized: sda=%d, scl=%d", BOARD_I2C_PORT,

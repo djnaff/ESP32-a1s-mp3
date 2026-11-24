@@ -1598,8 +1598,8 @@ static const char *source_name(playback_source_t source) {
 // Minimal JSON string escaper for the streaming list.
 static size_t json_escape(char *dst, size_t cap, const char *src) {
   size_t o = 0;
-  for (const unsigned char *p = (const unsigned char *)src;
-       *p && o + 7 < cap; p++) {
+  for (const unsigned char *p = (const unsigned char *)src; *p && o + 7 < cap;
+       p++) {
     switch (*p) {
     case '"':
       dst[o++] = '\\';
