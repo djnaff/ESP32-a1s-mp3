@@ -341,7 +341,9 @@ static void on_playback_event(playback_source_t source, playback_event_t event,
   }
   switch (event) {
   case PLAYBACK_EVENT_CONNECTED:
-    ESP_LOGI(TAG, "Network audio session started — disabling BT");
+    ESP_LOGI(TAG, "Network audio session started - disabling BT");
+    // Give the transport/volume controller a target while AirPlay is active.
+    playback_control_set_source(PLAYBACK_SOURCE_AIRPLAY);
     bt_a2dp_sink_set_discoverable(false);
     bt_coex_post(BT_COEX_EVT_AIRPLAY_CONNECTED);
     break;
