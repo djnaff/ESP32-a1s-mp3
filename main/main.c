@@ -333,9 +333,14 @@ static void on_bt_state_changed(bool connected) {
 static void on_playback_event(playback_source_t source, playback_event_t event,
                               const playback_event_data_t *data,
                               void *user_data) {
-  (void)source;
   (void)data;
   (void)user_data;
+  // Only AirPlay drives the Bluetooth coexistence state. The card player
+  // emits the same event names; treating those as a network session hid the
+  // Bluetooth radio (and suspended it) whenever an MP3 was playing.
+  if (source != PLAYBACK_SOURCE_AIRPLAY) {
+    return;
+  }
   if (bt_a2dp_sink_is_connected()) {
     return;
   }

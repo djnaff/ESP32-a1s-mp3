@@ -615,6 +615,14 @@ void sd_player_play(int index) {
     ESP_LOGW(TAG, "Nothing to play");
     return;
   }
+  // Never take the output from a source that is actually streaming. This has
+  // to run before audio_output_stop(): stopping first and then refusing left
+  // the other source silent with no task to render it.
+  if (playback_events_any_playing() &&
+      playback_events_active_source() != PLAYBACK_SOURCE_SD) {
+    ESP_LOGW(TAG, "Another source is playing; not starting");
+    return;
+  }
   // The output channel is created lazily (AirPlay does the same). If it is
   // already up, init returns an error here and that is fine.
   if (audio_output_init() != ESP_OK) {
@@ -625,11 +633,6 @@ void sd_player_play(int index) {
   // end_session() when the card player finishes.
   audio_output_stop();
   audio_output_flush();
-  if (playback_events_any_connected() &&
-      playback_events_active_source() != PLAYBACK_SOURCE_SD) {
-    ESP_LOGW(TAG, "Another source is connected; not starting");
-    return;
-  }
   if (index < 0 || index >= s_count) {
     index = 0;
   }
@@ -643,6 +646,18 @@ void sd_player_play(int index) {
   }
   s_want_play = true;
   xTaskNotifyGive(s_task);
+}
+
+// Start the last loaded track (or the first one after a fresh boot).
+void sd_player_resume(void) {
+  if (!s_task || s_count == 0) {
+    return;
+  }
+  int idx = s_index;
+  if (idx < 0 || idx >= s_count) {
+    idx = 0;
+  }
+  sd_player_play(idx);
 }
 
 void sd_player_next(void) {
@@ -678,7 +693,8 @@ void sd_player_next_album(void) {
     return;
   }
   if (!s_want_play) {
-    sd_player_play(0);
+    // Album skip only: do not start playback from this key.
+    ESP_LOGI(TAG, "Next album ignored: player idle");
     return;
   }
   int cur = s_index;

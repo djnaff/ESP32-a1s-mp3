@@ -48,6 +48,8 @@ void sd_player_next(void);
 void sd_player_prev(void);
 /** Jump to the first track of the next album (parent folder), wrapping. */
 void sd_player_next_album(void);
+/** Start the last loaded track, or the first track after a fresh boot. */
+void sd_player_resume(void);
 
 /** Stop and release the file and the amplifier. */
 void sd_player_stop(void);

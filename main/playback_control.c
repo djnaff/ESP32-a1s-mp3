@@ -165,9 +165,16 @@ void playback_control_play_pause(void) {
       rtsp_server_request_resume();
       dacp_send_playpause();
       ESP_LOGI(TAG, "AirPlay play/pause sent via DACP");
-    } else {
+    } else if (playback_events_source_active(PLAYBACK_SOURCE_AIRPLAY)) {
       // Fallback: mute/unmute the DAC locally when no DACP session
       playback_control_set_muted(!s_muted);
+    } else {
+#ifdef CONFIG_SD_PLAYER_ENABLE
+      // Nothing is connected: the key starts the local card player.
+      sd_player_resume();
+#else
+      ESP_LOGI(TAG, "Play/pause: no AirPlay session");
+#endif
     }
     break;
   }
@@ -197,7 +204,12 @@ void playback_control_play_pause(void) {
     break;
 #endif
   default:
+#ifdef CONFIG_SD_PLAYER_ENABLE
+    // Fresh boot: nothing has claimed the output, so play starts the card.
+    sd_player_resume();
+#else
     ESP_LOGI(TAG, "Play/pause: no active source (source=%d)", s_source);
+#endif
     break;
   }
 }
@@ -316,7 +328,8 @@ void playback_control_set_muted(bool muted) {
     (void)settings_get_volume(&s_pre_mute_db);
     dac_set_volume(VOLUME_MIN_DB);
     s_muted = true;
-    playback_events_emit(s_source, PLAYBACK_EVENT_PAUSED, NULL);
+    // Mute is a local level change, not a session event: emitting PAUSED here
+    // marked an idle source as connected, which then blocked other players.
     ESP_LOGI(TAG, "Muted locally (was %.1f dB)", s_pre_mute_db);
   } else {
     s_muted = false;
@@ -324,7 +337,6 @@ void playback_control_set_muted(bool muted) {
     // change and skip the DAC. Drive it directly to leave the mute floor.
     settings_set_volume(s_pre_mute_db);
     dac_set_volume(s_pre_mute_db);
-    playback_events_emit(s_source, PLAYBACK_EVENT_PLAYING, NULL);
     ESP_LOGI(TAG, "Unmuted locally (%.1f dB)", s_pre_mute_db);
   }
 }
